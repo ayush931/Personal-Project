@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { GAME_ITEMS } from '../../lib/items';
 
 export default class WorldScene extends Phaser.Scene {
   private player: Phaser.GameObjects.Container | null = null;
@@ -17,6 +18,7 @@ export default class WorldScene extends Phaser.Scene {
   private playerUsername = 'Citizen';
   private playerAvatar: any = {};
   private activeTheme = 'cyberpunk';
+  private initialPlayersList: any[] = [];
   
   // Portals layout for map switching
   private portals: Phaser.GameObjects.Rectangle[] = [];
@@ -25,11 +27,12 @@ export default class WorldScene extends Phaser.Scene {
     super('WorldScene');
   }
 
-  init(data: { socket: any; mapName: string; username: string; avatar: any; theme?: string }) {
+  init(data: { socket: any; mapName: string; username: string; avatar: any; theme?: string; initialPlayers?: any[] }) {
     this.socket = data.socket;
     this.activeMapName = data.mapName || 'Town Square';
     this.playerUsername = data.username || 'Citizen';
     this.activeTheme = data.theme || 'cyberpunk';
+    this.initialPlayersList = data.initialPlayers || [];
     
     try {
       this.playerAvatar = typeof data.avatar === 'string' ? JSON.parse(data.avatar) : data.avatar;
@@ -66,6 +69,13 @@ export default class WorldScene extends Phaser.Scene {
 
     // Spawn Main Player
     this.spawnPlayer();
+
+    // Spawn Initial Other Players
+    if (this.initialPlayersList && this.initialPlayersList.length > 0) {
+      this.initialPlayersList.forEach((p) => {
+        this.addOtherPlayer(p);
+      });
+    }
 
     // Set up Socket listeners
     this.setupNetworkEvents();
@@ -272,38 +282,75 @@ export default class WorldScene extends Phaser.Scene {
     const graphics = this.add.graphics();
 
     // Colors configs
-    const skin = avatar.skin || '#ffd1a9';
-    const hair = '#8b4513';
-    const shirt = '#3b82f6';
-    const pants = '#1e293b';
+    const avatarObj = avatar || {};
+    const getAssetColor = (itemId: string, defaultColor: string) => {
+      if (!itemId) return defaultColor;
+      const item = GAME_ITEMS[itemId];
+      return item?.assetData?.color || defaultColor;
+    };
+
+    const skin = avatarObj.skin || '#ffd1a9';
+    const hairColor = getAssetColor(avatarObj.hair, '#8b4513');
+    const shirtColor = getAssetColor(avatarObj.shirt, '#3b82f6');
+    const pantsColor = getAssetColor(avatarObj.pants, '#1e293b');
+    const shoesColor = getAssetColor(avatarObj.shoes, '#ffffff');
 
     // 1. Shadow
     graphics.fillStyle(0x000000, 0.2);
     graphics.fillEllipse(0, 18, 28, 12);
 
-    // 2. Legs/Shoes
-    graphics.fillStyle(0xffffff, 1); // white sneakers
+    // 2. Wings/Backpack (Back layer)
+    const backpackColor = avatarObj.backpack && avatarObj.backpack !== 'none' ? getAssetColor(avatarObj.backpack, '#ee82ee') : null;
+    if (backpackColor) {
+      graphics.fillStyle(Phaser.Display.Color.HexStringToColor(backpackColor).color, 0.7);
+      graphics.fillRect(-22, -8, 12, 8);
+      graphics.fillRect(10, -8, 12, 8);
+    }
+
+    // 3. Legs/Shoes
+    graphics.fillStyle(Phaser.Display.Color.HexStringToColor(shoesColor).color, 1);
     graphics.fillRect(-10, 12, 6, 6);
     graphics.fillRect(4, 12, 6, 6);
 
-    // 3. Body T-shirt / Pants
-    graphics.fillStyle(Phaser.Display.Color.HexStringToColor(pants).color, 1);
+    // 4. Body T-shirt / Pants
+    graphics.fillStyle(Phaser.Display.Color.HexStringToColor(pantsColor).color, 1);
     graphics.fillRect(-10, 2, 20, 10);
-    graphics.fillStyle(Phaser.Display.Color.HexStringToColor(shirt).color, 1);
+    graphics.fillStyle(Phaser.Display.Color.HexStringToColor(shirtColor).color, 1);
     graphics.fillRect(-10, -10, 20, 12);
 
-    // 4. Head/Skin
+    // 5. Head/Skin
     graphics.fillStyle(Phaser.Display.Color.HexStringToColor(skin).color, 1);
     graphics.fillCircle(0, -22, 10);
 
-    // 5. Hair
-    graphics.fillStyle(Phaser.Display.Color.HexStringToColor(hair).color, 1);
+    // 6. Hair
+    graphics.fillStyle(Phaser.Display.Color.HexStringToColor(hairColor).color, 1);
     graphics.fillRect(-11, -31, 22, 10);
 
-    // 6. Eyes Details
+    // 7. Eyes Details
     graphics.fillStyle(0x000000, 1);
     graphics.fillRect(-5, -24, 2, 2);
     graphics.fillRect(3, -24, 2, 2);
+
+    // 8. Hat
+    const hatColor = avatarObj.hat && avatarObj.hat !== 'hat_none' ? getAssetColor(avatarObj.hat, '#ffd700') : null;
+    if (hatColor) {
+      graphics.fillStyle(Phaser.Display.Color.HexStringToColor(hatColor).color, 1);
+      graphics.fillTriangle(-14, -32, 14, -32, 0, -48);
+    }
+
+    // 9. Glasses
+    const glassesColor = avatarObj.glasses && avatarObj.glasses !== 'glasses_none' ? getAssetColor(avatarObj.glasses, '#ff00ff') : null;
+    if (glassesColor) {
+      graphics.fillStyle(Phaser.Display.Color.HexStringToColor(glassesColor).color, 0.85);
+      graphics.fillRect(-8, -26, 16, 4);
+    }
+
+    // 10. Hand Accessory
+    const accessoryColor = avatarObj.accessory && avatarObj.accessory !== 'accessory_none' ? getAssetColor(avatarObj.accessory, '#c0c0c0') : null;
+    if (accessoryColor) {
+      graphics.lineStyle(3, Phaser.Display.Color.HexStringToColor(accessoryColor).color, 1);
+      graphics.lineBetween(-14, 8, -20, -12); // Held in hand
+    }
 
     container.add(graphics);
 
@@ -324,44 +371,9 @@ export default class WorldScene extends Phaser.Scene {
   private setupNetworkEvents() {
     if (!this.socket) return;
 
-    // Receive initial players coordinates list
-    this.socket.on('players_in_map', (players: any[]) => {
-      // Clear existing sprites first
-      this.otherPlayers.forEach((sprite) => sprite.destroy());
-      this.otherPlayers.clear();
-
-      players.forEach((p) => {
-        this.addOtherPlayer(p);
-      });
-    });
-
-    // Handle new player entering map
-    this.socket.on('player_joined', (p: any) => {
-      this.addOtherPlayer(p);
-    });
-
-    // Handle player coordinates sync
-    this.socket.on('player_moved', (data: { socketId: string; x: number; y: number }) => {
-      const other = this.otherPlayers.get(data.socketId);
-      if (other) {
-        // Use smooth tween interpolation instead of sudden teleporting
-        this.tweens.add({
-          targets: other,
-          x: data.x,
-          y: data.y,
-          duration: 100
-        });
-      }
-    });
-
-    // Handle player exit
-    this.socket.on('player_left', (data: { socketId: string }) => {
-      const other = this.otherPlayers.get(data.socketId);
-      if (other) {
-        other.destroy();
-        this.otherPlayers.delete(data.socketId);
-      }
-    });
+    // Clean up any existing listeners on the socket
+    this.socket.off('player_emote');
+    this.socket.off('chat_message');
 
     // Handle Emote Speech Bubble Drawing
     this.socket.on('player_emote', (data: { socketId: string; type: string; content: string }) => {
@@ -374,6 +386,60 @@ export default class WorldScene extends Phaser.Scene {
 
       if (target) {
         this.drawSpeechBubble(target, data.content);
+      }
+    });
+
+    // Handle Chat Messages Speech Bubble drawing inside Phaser
+    this.socket.on('chat_message', (data: { socketId: string; content: string }) => {
+      let target: Phaser.GameObjects.Container | null = null;
+      if (this.socket.id === data.socketId) {
+        target = this.player;
+      } else {
+        target = this.otherPlayers.get(data.socketId) || null;
+      }
+
+      if (target) {
+        this.drawSpeechBubble(target, data.content);
+      }
+    });
+
+    // Clean up on shutdown
+    this.events.once('shutdown', () => {
+      if (this.socket) {
+        this.socket.off('player_emote');
+        this.socket.off('chat_message');
+      }
+    });
+  }
+
+  updateOtherPlayers(players: any[]) {
+    // 1. Identify which players need to be removed
+    const currentSocketIds = new Set(players.map(p => p.socketId));
+    this.otherPlayers.forEach((container, socketId) => {
+      if (!currentSocketIds.has(socketId)) {
+        container.destroy();
+        this.otherPlayers.delete(socketId);
+      }
+    });
+
+    // 2. Add or update players
+    players.forEach((p) => {
+      // Don't draw our own player container as an "other" player
+      if (p.username === this.playerUsername || (this.socket && this.socket.id === p.socketId)) return;
+
+      const other = this.otherPlayers.get(p.socketId);
+      if (!other) {
+        this.addOtherPlayer(p);
+      } else {
+        // Update position smoothly if moved
+        if (other.x !== p.x || other.y !== p.y) {
+          this.tweens.add({
+            targets: other,
+            x: p.x,
+            y: p.y,
+            duration: 100
+          });
+        }
       }
     });
   }
@@ -395,8 +461,40 @@ export default class WorldScene extends Phaser.Scene {
       p.y,
       false
     );
+
+    // Make other player characters interactive to allow pointer interactions
+    other.setSize(32, 48);
+    other.setInteractive(new Phaser.Geom.Rectangle(-16, -24, 32, 48), Phaser.Geom.Rectangle.Contains);
+
+    other.on('pointerover', () => {
+      other.setScale(1.05);
+      this.game.canvas.style.cursor = 'pointer';
+    });
+
+    other.on('pointerout', () => {
+      other.setScale(1.0);
+      this.game.canvas.style.cursor = 'default';
+    });
+
+    other.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+      pointer.event?.stopPropagation();
+      this.handlePlayerClick(p);
+    });
     
     this.otherPlayers.set(p.socketId, other);
+  }
+
+  private handlePlayerClick(player: any) {
+    const event = new CustomEvent('phaser-player-click', {
+      detail: {
+        socketId: player.socketId,
+        username: player.username,
+        id: player.id,
+        level: player.level,
+        badge: player.badge
+      }
+    });
+    window.dispatchEvent(event);
   }
 
   private drawSpeechBubble(parent: Phaser.GameObjects.Container, text: string) {

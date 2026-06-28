@@ -102,7 +102,13 @@ export default function LandingPage({
         body: JSON.stringify(payload),
       });
 
-      const data = await response.json();
+      let data;
+      try {
+        data = await response.json();
+      } catch (jsonErr) {
+        throw new Error('Server returned an invalid response. Please try again later.');
+      }
+
       if (!response.ok) {
         throw new Error(data.error || 'Authentication failed.');
       }

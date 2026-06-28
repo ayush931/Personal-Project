@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { useSocket } from '@/lib/useSocket';
-import { User, Coins, Gem, ShoppingBag, FolderHeart, Milestone, Users, Gamepad2, Settings, Home, Shield, LogOut, Mic, MicOff, AlertCircle, Palette } from 'lucide-react';
+import { User, Coins, Gem, ShoppingBag, FolderHeart, Milestone, Users, Gamepad2, Settings, Home, Shield, LogOut, Mic, MicOff, AlertCircle, Palette, Eye, EyeOff, Maximize2, Minimize2 } from 'lucide-react';
 
 // Dynamically import panels to ensure code-splitting and fast loading
 const AvatarCustomizer = dynamic(() => import('@/components/AvatarCustomizer'), { ssr: false });
@@ -31,6 +31,54 @@ export default function WorldPage({
   const [activeMap, setActiveMap] = useState(decodedRoomId);
   const [loading, setLoading] = useState(true);
   const [theme, setTheme] = useState<'cyberpunk' | 'lavender'>('cyberpunk');
+  const [hideHud, setHideHud] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  // Toggle browser fullscreen API
+  const toggleFullscreen = async () => {
+    try {
+      if (!document.fullscreenElement) {
+        await document.documentElement.requestFullscreen();
+        setIsFullscreen(true);
+      } else {
+        if (document.exitFullscreen) {
+          await document.exitFullscreen();
+          setIsFullscreen(false);
+        }
+      }
+    } catch (err) {
+      console.error('Error toggling fullscreen:', err);
+    }
+  };
+
+  // Sync fullscreen state with browser changes (e.g. Esc key)
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
+
+  // Keyboard shortcut to hide/show HUD [Key: H]
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const activeEl = document.activeElement;
+      if (
+        activeEl &&
+        (activeEl.tagName === 'INPUT' ||
+          activeEl.tagName === 'TEXTAREA' ||
+          (activeEl as HTMLElement).isContentEditable)
+      ) {
+        return;
+      }
+      if (e.key === 'h' || e.key === 'H') {
+        setHideHud((prev) => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   useEffect(() => {
     const savedTheme = localStorage.getItem('pixelverse_theme') as any;
@@ -59,6 +107,11 @@ export default function WorldPage({
   const [activeModal, setActiveModal] = useState<
     'NONE' | 'AVATAR' | 'SHOP' | 'INVENTORY' | 'QUESTS' | 'SOCIAL' | 'ARCADE' | 'ROOM' | 'ADMIN'
   >('NONE');
+
+  // Interaction details of player clicked in Phaser
+  const [selectedInteractionPlayer, setSelectedInteractionPlayer] = useState<any | null>(null);
+
+
 
   // WebRTC Voice Chat state
   const [voiceMuted, setVoiceMuted] = useState(true);
@@ -134,6 +187,26 @@ export default function WorldPage({
     router.replace(`/${encodeURIComponent(newMap)}`);
   });
 
+  // Open Arcade panel if game starts
+  useEffect(() => {
+    if (socketHook.gameMatch) {
+      setActiveModal('ARCADE');
+    }
+  }, [socketHook.gameMatch]);
+
+  // Listen to Phaser player click events
+  useEffect(() => {
+    const handlePhaserPlayerClick = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      setSelectedInteractionPlayer(customEvent.detail);
+    };
+
+    window.addEventListener('phaser-player-click', handlePhaserPlayerClick);
+    return () => {
+      window.removeEventListener('phaser-player-click', handlePhaserPlayerClick);
+    };
+  }, []);
+
   // 3. LAZY LOAD PHASER CLIENT
   useEffect(() => {
     if (loading || !user) return;
@@ -153,6 +226,7 @@ export default function WorldPage({
         username: user.username,
         avatar: user.avatarCustomization,
         theme: theme, // Pass active theme
+        initialPlayers: socketHook.playersInMap,
       });
 
       phaserGameRef.current = gameInstance;
@@ -190,6 +264,7 @@ export default function WorldPage({
           username: user.username,
           avatar: user.avatarCustomization,
           theme: theme, // Pass active theme
+          initialPlayers: socketHook.playersInMap,
         });
       }
     }
@@ -206,10 +281,21 @@ export default function WorldPage({
           username: user.username,
           avatar: user.avatarCustomization,
           theme: theme, // Pass active theme
+          initialPlayers: socketHook.playersInMap,
         });
       }
     }
   }, [socketHook.connected, theme]);
+
+  // Sync other players' coordinates and presence to Phaser
+  useEffect(() => {
+    if (phaserGameRef.current) {
+      const scene = phaserGameRef.current.scene.getScene('WorldScene') as any;
+      if (scene && scene.sys.isActive() && typeof scene.updateOtherPlayers === 'function') {
+        scene.updateOtherPlayers(socketHook.playersInMap);
+      }
+    }
+  }, [socketHook.playersInMap]);
 
   // Refresh profile data from API
   const refreshProfileData = async () => {
@@ -300,7 +386,7 @@ export default function WorldPage({
     <div className="relative w-screen h-screen flex flex-col overflow-hidden bg-background select-none">
       
       {/* 1. HUD TOP BAR HEADER */}
-      <div className="glass-panel absolute top-0 left-0 right-0 h-14 z-20 flex items-center justify-between px-6 border-b border-border/10">
+      <div className={`glass-panel absolute top-0 left-0 right-0 h-14 z-20 flex items-center justify-between px-6 border-b border-border/10 transition-all duration-300 ${hideHud ? '-translate-y-full opacity-0 pointer-events-none' : 'translate-y-0 opacity-100'}`}>
         <div className="flex items-center gap-4">
           {/* Avatar Profile Box */}
           <button
@@ -386,6 +472,24 @@ export default function WorldPage({
               <option value="lavender" className="bg-slate-900 text-white">Lavender</option>
             </select>
           </div>
+
+          {/* Zen Mode Toggle Button */}
+          <button
+            onClick={() => setHideHud(true)}
+            className="p-2 bg-secondary/60 border border-border/50 hover:bg-primary/20 hover:border-primary rounded-xl text-foreground hover:text-primary transition-all duration-200"
+            title="Zen Mode (Hide HUD) [Key: H]"
+          >
+            <EyeOff className="w-4 h-4" />
+          </button>
+
+          {/* Fullscreen Toggle Button */}
+          <button
+            onClick={toggleFullscreen}
+            className="p-2 bg-secondary/60 border border-border/50 hover:bg-primary/20 hover:border-primary rounded-xl text-foreground hover:text-primary transition-all duration-200"
+            title={isFullscreen ? "Exit Fullscreen" : "Fullscreen Mode"}
+          >
+            {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+          </button>
           
           <button
             onClick={handleLogout}
@@ -400,8 +504,20 @@ export default function WorldPage({
       {/* 2. MAIN PHASER VIEWPORT CANVAS */}
       <div id={phaserContainerId} className="flex-1 w-full h-full relative" />
 
+      {/* 2.5 FLOATING HUD RESTORE BUTTON */}
+      {hideHud && (
+        <button
+          onClick={() => setHideHud(false)}
+          className="absolute top-4 right-4 z-30 p-2.5 bg-slate-900/90 hover:bg-primary/95 border border-primary/30 text-white rounded-2xl shadow-xl flex items-center gap-1.5 transition-all duration-300 animate-fadeIn"
+          title="Restore HUD [Key: H]"
+        >
+          <Eye className="w-4 h-4 text-primary animate-pulse" />
+          <span className="text-[10px] font-bold tracking-wider uppercase">Restore HUD</span>
+        </button>
+      )}
+
       {/* 3. FLOATING ACTION PANELS BUTTONS (BOTTOM RIGHT HUD) */}
-      <div className="absolute bottom-6 right-6 z-20 flex flex-col gap-3">
+      <div className={`absolute bottom-6 right-6 z-20 flex flex-col gap-3 transition-all duration-300 ${hideHud ? 'translate-x-[calc(100%+24px)] opacity-0 pointer-events-none' : 'translate-x-0 opacity-100'}`}>
         {/* Admin operations trigger */}
         {user.role === 'ADMIN' && (
           <button
@@ -465,7 +581,7 @@ export default function WorldPage({
       </div>
 
       {/* 4. CHAT BOX OVERLAY (BOTTOM LEFT HUD) */}
-      <div className="absolute bottom-6 left-6 z-20 shadow-2xl">
+      <div className={`absolute bottom-6 left-6 z-20 shadow-2xl transition-all duration-300 ${hideHud ? '-translate-x-[calc(100%+24px)] opacity-0 pointer-events-none' : 'translate-x-0 opacity-100'}`}>
         <ChatBox
           messages={socketHook.chatMessages}
           activeMap={activeMap}
@@ -555,6 +671,7 @@ export default function WorldPage({
           user={user}
           socket={socketHook.socket}
           gameMatch={socketHook.gameMatch}
+          playersInMap={socketHook.playersInMap}
           onSubmitMove={socketHook.submitGameMove}
           onFinishGame={socketHook.finishGame}
           onClose={() => setActiveModal('NONE')}
@@ -573,6 +690,84 @@ export default function WorldPage({
         <AdminPanel
           onClose={() => setActiveModal('NONE')}
         />
+      )}
+
+      {selectedInteractionPlayer && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fadeIn">
+          <div className="modern-panel relative w-full max-w-sm p-6 flex flex-col items-center text-center">
+            
+            {/* CLOSE BUTTON */}
+            <button
+              onClick={() => setSelectedInteractionPlayer(null)}
+              className="absolute -top-3 -right-3 modern-btn modern-btn-accent text-sm w-9 h-9 rounded-full p-0 flex items-center justify-center shadow-lg"
+            >
+              ✕
+            </button>
+
+            {/* HEADER */}
+            <div className="w-16 h-16 rounded-full bg-purple-950 border border-purple-800/30 flex items-center justify-center text-2xl mb-3 shadow-inner">
+              👤
+            </div>
+            
+            <h3 className="font-modern-heading text-lg text-purple-400">
+              {selectedInteractionPlayer.username}
+            </h3>
+            
+            <div className="flex gap-2 mt-1.5 mb-5">
+              <span className="text-[10px] font-bold bg-slate-900 border border-white/5 text-slate-400 px-2 py-0.5 rounded">
+                Lvl {selectedInteractionPlayer.level || 1}
+              </span>
+              <span className="text-[10px] font-bold bg-slate-900 border border-white/5 text-slate-400 px-2 py-0.5 rounded">
+                {selectedInteractionPlayer.badge || 'Newcomer'}
+              </span>
+            </div>
+
+            <div className="w-full space-y-2.5">
+              <button
+                onClick={() => {
+                  socketHook.challengePlayer(selectedInteractionPlayer.socketId, 'tictactoe');
+                  setSelectedInteractionPlayer(null);
+                  setActiveModal('ARCADE');
+                }}
+                className="w-full modern-btn modern-btn-primary py-2.5 text-xs flex items-center justify-center gap-2"
+              >
+                🎮 Challenge to Tic Tac Toe
+              </button>
+
+              <button
+                onClick={async () => {
+                  try {
+                    const res = await fetch('/api/profile', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        action: 'add_friend',
+                        friendUsername: selectedInteractionPlayer.username,
+                      }),
+                    });
+                    const data = await res.json();
+                    if (!res.ok) throw new Error(data.error || 'Failed to add friend');
+                    alert(`Friend request sent to ${selectedInteractionPlayer.username}!`);
+                  } catch (err: any) {
+                    alert(err.message || 'Could not send friend request.');
+                  }
+                  setSelectedInteractionPlayer(null);
+                }}
+                className="w-full modern-btn modern-btn-secondary py-2.5 text-xs flex items-center justify-center gap-2 text-slate-300 hover:text-white"
+              >
+                👤 Add Citizen as Friend
+              </button>
+
+              <button
+                onClick={() => setSelectedInteractionPlayer(null)}
+                className="w-full modern-btn modern-btn-accent py-2 text-xs"
+              >
+                Cancel
+              </button>
+            </div>
+
+          </div>
+        </div>
       )}
 
     </div>

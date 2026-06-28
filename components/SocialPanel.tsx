@@ -66,13 +66,13 @@ export default function SocialPanel({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          action: 'update_profile',
-          statusText: undefined,
-          activeBadge: undefined,
+          action: 'add_friend',
+          friendUsername: searchName.trim(),
         }),
       });
 
-      if (!response.ok) throw new Error("Friend request failed");
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Friend request failed");
 
       setStatusMsg(`Sent friend request to ${searchName}!`);
       setSearchName('');
@@ -86,12 +86,22 @@ export default function SocialPanel({
   const handleAcceptFriend = async (friendId: string) => {
     try {
       setStatusMsg('Accepting request...');
-      setTimeout(async () => {
-        setStatusMsg('Accepted friend request!');
-        await fetchFriends();
-      }, 1000);
-    } catch (e) {
-      console.error(e);
+      const response = await fetch('/api/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'accept_friend',
+          friendId,
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Failed to accept friend request');
+
+      setStatusMsg('Accepted friend request!');
+      await fetchFriends();
+    } catch (e: any) {
+      setStatusErr(true);
+      setStatusMsg(e.message || 'Failed to accept request');
     }
   };
 

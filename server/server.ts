@@ -215,6 +215,7 @@ io.on('connection', (socket: Socket) => {
       const chatMsg = {
         senderId: player.id,
         senderName: player.username,
+        socketId: socket.id,
         content: data.content,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         isVip: player.isVip

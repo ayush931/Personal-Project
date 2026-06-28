@@ -33,8 +33,7 @@ export default function AvatarCustomizer({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'update_profile',
-          statusText: undefined,
-          activeBadge: undefined,
+          avatarCustomization: updated,
         }),
       });
       await onEquipItem('avatar_human', true);

@@ -8,13 +8,14 @@ export interface GameConfigData {
   username: string;
   avatar: any;
   theme?: string;
+  initialPlayers?: any[];
 }
 
 export function startPhaserGame(configData: GameConfigData): Phaser.Game {
   const config: Phaser.Types.Core.GameConfig = {
     type: Phaser.AUTO,
-    width: '100%',
-    height: '100%',
+    width: 1200,
+    height: 900,
     parent: configData.containerId,
     physics: {
       default: 'arcade',
@@ -39,7 +40,8 @@ export function startPhaserGame(configData: GameConfigData): Phaser.Game {
       mapName: configData.mapName,
       username: configData.username,
       avatar: configData.avatar,
-      theme: configData.theme
+      theme: configData.theme,
+      initialPlayers: configData.initialPlayers
     });
   });
 

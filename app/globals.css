@@ -299,3 +299,10 @@ input:-webkit-autofill:active {
     linear-gradient(to right, rgba(139, 92, 246, 0.025) 1px, transparent 1px),
     linear-gradient(to bottom, rgba(139, 92, 246, 0.025) 1px, transparent 1px);
 }
+
+/* Force Phaser canvas to stretch fully and remove side black bars */
+#phaser-game-viewport canvas {
+  width: 100% !important;
+  height: 100% !important;
+  margin: 0 !important;
+}

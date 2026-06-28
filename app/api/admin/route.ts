@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    let usersList = [];
+    let usersList: any[] = [];
     try {
       usersList = await prisma.user.findMany({
         select: {

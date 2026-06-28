@@ -8,6 +8,7 @@ interface GameConsoleProps {
   user: any;
   socket: any;
   gameMatch: any; // Realtime match info from useSocket
+  playersInMap: any[];
   onSubmitMove: (roomId: string, state: any) => void;
   onFinishGame: (roomId: string, result: 'WIN' | 'LOSS' | 'DRAW', winnerName?: string) => void;
   onClose: () => void;
@@ -17,6 +18,7 @@ export default function GameConsole({
   user,
   socket,
   gameMatch,
+  playersInMap,
   onSubmitMove,
   onFinishGame,
   onClose,
@@ -200,11 +202,34 @@ export default function GameConsole({
   // ==========================================
   // GAME 3: TICTACTOE MULTIPLAYER
   // ==========================================
+  const checkTttWinner = (board: any[]) => {
+    const lines = [
+      [0, 1, 2],
+      [3, 4, 5],
+      [6, 7, 8],
+      [0, 3, 6],
+      [1, 4, 7],
+      [2, 5, 8],
+      [0, 4, 8],
+      [2, 4, 6]
+    ];
+    for (let i = 0; i < lines.length; i++) {
+      const [a, b, c] = lines[i];
+      if (board[a] && board[a] === board[b] && board[a] === board[c]) {
+        return board[a]; // 'X' or 'O'
+      }
+    }
+    if (board.every(cell => cell !== null && cell !== '')) {
+      return 'draw';
+    }
+    return null;
+  };
+
   const handleTttClick = (cellIdx: number) => {
     if (!gameMatch || gameMatch.ended) return;
     
-    // Check if cell empty
-    if (gameMatch.state.board[cellIdx] !== '') return;
+    // Check if cell empty (handle null, undefined, or empty string)
+    if (gameMatch.state.board[cellIdx]) return;
     
     // Check if user turn
     const isXTurn = gameMatch.state.xIsNext;
@@ -216,12 +241,25 @@ export default function GameConsole({
     }
 
     const newBoard = [...gameMatch.state.board];
-    newBoard[cellIdx] = isUserX ? 'X' : 'O';
+    const marker = isUserX ? 'X' : 'O';
+    newBoard[cellIdx] = marker;
 
-    onSubmitMove(gameMatch.roomId, {
-      board: newBoard,
-      xIsNext: !isXTurn
-    });
+    const winner = checkTttWinner(newBoard);
+    if (winner) {
+      if (winner === 'draw') {
+        onFinishGame(gameMatch.roomId, 'DRAW');
+        recordScoreInDb('tictactoe', 'DRAW', 20);
+      } else {
+        // Since we are the ones who made the winning move, we won!
+        onFinishGame(gameMatch.roomId, 'WIN', user.username);
+        recordScoreInDb('tictactoe', 'WIN', 100);
+      }
+    } else {
+      onSubmitMove(gameMatch.roomId, {
+        board: newBoard,
+        xIsNext: !isXTurn
+      });
+    }
   };
 
   const handleChallengeRequest = (socketId: string) => {
@@ -305,20 +343,35 @@ export default function GameConsole({
                 <h3 className="text-sm font-semibold text-foreground mt-2.5">Tic Tac Toe</h3>
                 <p className="text-xs text-slate-400 mt-1.5 leading-relaxed">Challenge other players in your map to a synchronized match of 3-in-a-row!</p>
               </div>
-              <div className="mt-4 space-y-2">
-                <input
-                  type="text"
-                  placeholder="Enter target username..."
-                  className="modern-input py-1.5 px-3"
-                  value={targetSocketId}
-                  onChange={(e) => setTargetSocketId(e.target.value)}
-                />
-                <button
-                  onClick={() => handleChallengeRequest(targetSocketId)}
-                  className="w-full modern-btn modern-btn-secondary py-2 text-xs"
-                >
-                  Send Challenge
-                </button>
+              <div className="mt-4 space-y-2 max-h-[140px] overflow-y-auto pr-1">
+                {playersInMap && playersInMap.length > 0 ? (
+                  playersInMap.map((player) => (
+                    <div
+                      key={player.socketId}
+                      className="flex items-center justify-between p-2 bg-slate-950/65 rounded-xl border border-white/5 hover:border-purple-500/20 transition-all"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                        <span className="text-xs font-semibold text-foreground">
+                          {player.username}
+                        </span>
+                        <span className="text-[9px] text-slate-400 bg-slate-900 px-1 py-0.5 rounded">
+                          Lvl {player.level || 1}
+                        </span>
+                      </div>
+                      <button
+                        onClick={() => handleChallengeRequest(player.socketId)}
+                        className="modern-btn modern-btn-primary py-1 px-3 text-[10px] rounded-lg"
+                      >
+                        Challenge
+                      </button>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-[10px] text-slate-450 text-center py-4">
+                    No other players in this room.
+                  </p>
+                )}
               </div>
             </div>
           </div>
