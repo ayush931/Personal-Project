@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PixelVerse - Developer Documentation</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0f0c1b;
+      --fg: #f3f0ff;
+      --primary: #9d4edd;
+      --primary-hover: #7b2cbf;
+      --secondary: #1a1130;
+      --accent: #ff007f;
+      --success: #39ff14;
+      --card-bg: rgba(26, 17, 48, 0.75);
+      --border-color: rgba(157, 78, 221, 0.4);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: radial-gradient(circle at 50% 50%, #1a0f30 0%, #0c061c 100%);
+      color: var(--fg);
+      font-family: 'Outfit', sans-serif;
+      line-height: 1.6;
+      padding: 40px 20px;
+    }
+
+    .container {
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+
+    /* Header */
+    header {
+      text-align: center;
+      margin-bottom: 50px;
+      padding-bottom: 30px;
+      border-b: 4px solid var(--border-color);
+      border-image: linear-gradient(to right, var(--primary), var(--accent)) 1;
+    }
+
+    h1 {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 2rem;
+      color: #fff;
+      text-shadow: 4px 4px 0px var(--primary);
+      margin-bottom: 15px;
+      letter-spacing: 2px;
+    }
+
+    .subtitle {
+      font-family: 'VT323', monospace;
+      font-size: 1.5rem;
+      color: var(--accent);
+      letter-spacing: 1px;
+    }
+
+    /* Cards */
+    .card {
+      background: var(--card-bg);
+      border: 2px solid var(--border-color);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+      padding: 30px;
+      margin-bottom: 30px;
+      border-radius: 4px;
+      backdrop-filter: blur(10px);
+    }
+
+    h2 {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 1.1rem;
+      color: #ffff00;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    p {
+      margin-bottom: 15px;
+      font-size: 0.95rem;
+      color: #d1c4e9;
+    }
+
+    /* Code blocks */
+    pre {
+      background: #05020c;
+      border: 1px solid #3b2c63;
+      padding: 15px;
+      border-radius: 4px;
+      overflow-x: auto;
+      margin: 15px 0;
+    }
+
+    code {
+      font-family: 'VT323', monospace;
+      font-size: 1.2rem;
+      color: var(--success);
+    }
+
+    /* Steps list */
+    ol, ul {
+      margin-left: 25px;
+      margin-bottom: 20px;
+    }
+
+    li {
+      margin-bottom: 10px;
+      color: #e1d8f5;
+    }
+
+    strong {
+      color: #fff;
+    }
+
+    /* Badges */
+    .badge {
+      display: inline-block;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 8px;
+      padding: 4px 8px;
+      border-radius: 2px;
+      background: var(--accent);
+      color: #fff;
+      vertical-align: middle;
+      margin-left: 10px;
+    }
+
+    /* Grid layout */
+    .grid {
+      display: grid;
+      grid-template-cols: 1fr;
+      gap: 20px;
+    }
+
+    @media (min-width: 768px) {
+      .grid {
+        grid-template-cols: 1fr 1fr;
+      }
+    }
+
+    /* Footer */
+    footer {
+      text-align: center;
+      margin-top: 60px;
+      color: #6a5acd;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 9px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>PIXELVERSE</h1>
+      <div class="subtitle">Complete Technical & Local Operations Documentation</div>
+    </header>
+
+    <!-- SECTION 1: GETTING STARTED -->
+    <div class="card">
+      <h2>🚀 Local Quick Start Guide</h2>
+      <p>Follow these steps to launch the entire PixelVerse virtual world locally in less than 2 minutes:</p>
+      
+      <ol>
+        <li>
+          <strong>Install Project Dependencies</strong>:
+          <pre><code>npm install</code></pre>
+        </li>
+        <li>
+          <strong>Set Up Environment Configurations</strong>:
+          <p>Duplicate the environment template file and provide your connection strings:</p>
+          <pre><code>cp .env.example .env</code></pre>
+        </li>
+        <li>
+          <strong>Initiate Database Migrations (Optional)</strong>:
+          <p>If you have Neon PostgreSQL URL specified, push the schema. If database is not present, PixelVerse will automatically activate zero-config in-memory mode:</p>
+          <pre><code>npx prisma generate</code></pre>
+        </li>
+        <li>
+          <strong>Run Frontend & Real-Time Socket Servers</strong>:
+          <p>Open two separate terminal windows to run both servers concurrently:</p>
+          <pre><code># Terminal Pane 1: Boot Next.js Application Client
+npm run dev
+
+# Terminal Pane 2: Boot Real-time Express Socket.io Gateway
+npm run server</code></pre>
+        </li>
+        <li>
+          <strong>Open your web browser</strong>:
+          <p>Navigate to <a href="http://localhost:3000" target="_blank" style="color: #00ffff; text-decoration: underline;">http://localhost:3000</a>. Enter a Guest username and jump right in!</p>
+        </li>
+      </ol>
+    </div>
+
+    <!-- SECTION 2: WORKFLOW -->
+    <div class="card">
+      <h2>⚡ System Architecture & Realtime Workflow</h2>
+      <p>PixelVerse operates on a split-mesh client-server synchronizer designed for heavy loads:</p>
+      
+      <div class="grid">
+        <div style="background: rgba(0,0,0,0.2); padding: 15px; border-radius: 4px;">
+          <p style="color: #ffff00; font-weight: bold; margin-bottom: 5px;">🌍 Coordinates Sync Workflow</p>
+          <ul>
+            <li>User moves using WASD or arrow keys.</li>
+            <li>Phaser client registers physics velocity, updates position, and transmits vector updates to the socket server at 20Hz.</li>
+            <li>The Socket.io server receives position coordinates and broadcasts them to all other sockets inside the same map.</li>
+            <li>Other clients interpolate positions using Phaser tweens over 100ms for fluid visual updates.</li>
+          </ul>
+        </div>
+        
+        <div style="background: rgba(0,0,0,0.2); padding: 15px; border-radius: 4px;">
+          <p style="color: #ffff00; font-weight: bold; margin-bottom: 5px;">💾 Database Strategy (Neon Postgres)</p>
+          <ul>
+            <li>We utilize Prisma 7 configured for PostgreSQL.</li>
+            <li>Connections utilize the serverless <strong>PrismaNeon adapter</strong> over WebSockets, optimized for zero connection exhaustion in lambda functions.</li>
+            <li><strong>Zero-Friction Fallback Layer</strong>: If Neon credentials are not configured, database triggers automatically reroute to high-speed memory arrays. No setup required to preview!</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- SECTION 3: FEATURES -->
+    <div class="card">
+      <h2>🎮 Features Walkthrough</h2>
+      <div class="grid">
+        <div>
+          <p><strong>🎭 Modular Avatar Customs</strong>: Modify character skin colors, hairstyle, eyes, shirts, pants, shoes, caps, wings, and accessories. Changes update on the canvas immediately.</p>
+          <p><strong>🏠 Private Room Decoration</strong>: Every citizen owns a room. Select owned furniture items, place them on the grid layout coordinates, rotate them, play retro chip-tunes, and save room coordinates.</p>
+          <p><strong>🛍️ Shop Catalogues</strong>: Buy modular clothing items, fantasy characters models, cute pets (which walk and float behind you), and custom decorator furniture.</p>
+        </div>
+        <div>
+          <p><strong>💬 Realtime Social Chat & DMs</strong>: Send map-wide speech bubbles, emojis reactions, and private messages. Chat logs persist in real-time.</p>
+          <p><strong>🕹️ Arcade Mini-Games</strong>: Rendered in-engine! Connect to multiplayer Tic Tac Toe with opponent socket syncs, or play retro Snake and Memory match cards to earn coins.</p>
+          <p><strong>👑 Operations Security Desk</strong>: Full admin panel dashboard for analyzing metrics (total connections, uptime, coin counts), role modifications (VIP/ADMIN), and auditing log streams.</p>
+        </div>
+      </div>
+    </div>
+
+    <footer>
+      ★ PixelVerse 2026 - Designed for retention & community ★
+    </footer>
+  </div>
+</body>
+</html>

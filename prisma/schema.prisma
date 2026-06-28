@@ -1,0 +1,146 @@
+datasource db {
+  provider = "postgresql"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id                  String           @id @default(uuid())
+  username            String           @unique
+  email               String?          @unique
+  passwordHash        String?
+  role                String           @default("USER") // USER, VIP, ADMIN
+  coins               Int              @default(1000)
+  gems                Int              @default(50)
+  level               Int              @default(1)
+  xp                  Int              @default(0)
+  avatarCustomization String           @default("{\"skin\":\"#ffd1a9\",\"hair\":\"short_brown\",\"eyes\":\"default_black\",\"face\":\"happy\",\"shirt\":\"basic_blue\",\"pants\":\"basic_jeans\",\"shoes\":\"sneakers_white\",\"hat\":\"none\",\"glasses\":\"none\",\"accessory\":\"none\",\"backpack\":\"none\",\"pet\":\"none\"}")
+  status              String           @default("Exploring PixelVerse!")
+  activeBadge         String           @default("Newcomer")
+  vipExpiresAt        DateTime?
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+
+  inventory           InventoryItem[]
+  friends             Friend[]         @relation("UserFriends")
+  friendOf            Friend[]         @relation("UserFriendOf")
+  roomItems           RoomItem[]
+  guildId             String?
+  guild               Guild?           @relation(fields: [guildId], references: [id])
+  ownedGuild          Guild?           @relation("GuildOwner")
+  achievements        Achievement[]
+  quests              QuestProgress[]
+  transactions        Transaction[]
+  matchHistory        MatchHistory[]
+}
+
+model InventoryItem {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  itemId      String   // ID referencing the item configuration (e.g., 'hair_neon_pink')
+  itemType    String   // CLOTHING, AVATAR_MODEL, PET, FURNITURE
+  equipped    Boolean  @default(false)
+  purchasedAt DateTime @default(now())
+
+  @@unique([userId, itemId])
+}
+
+model Friend {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation("UserFriends", fields: [userId], references: [id], onDelete: Cascade)
+  friendId  String
+  friend    User     @relation("UserFriendOf", fields: [friendId], references: [id], onDelete: Cascade)
+  status    String   @default("PENDING") // PENDING, ACCEPTED, BLOCKED
+  createdAt DateTime @default(now())
+
+  @@unique([userId, friendId])
+}
+
+model RoomItem {
+  id        String @id @default(uuid())
+  userId    String
+  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  itemId    String // ID referencing the furniture item configuration
+  x         Float
+  y         Float
+  rotation  Float  @default(0)
+  roomTheme String @default("cosy_cabin")
+}
+
+model Guild {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String?
+  ownerId     String   @unique
+  owner       User     @relation("GuildOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+
+  members     User[]
+}
+
+model Message {
+  id          String   @id @default(uuid())
+  senderId    String
+  senderName  String
+  channelType String   // GLOBAL, ROOM, PARTY, GUILD, PRIVATE
+  channelId   String   // Room name, party ID, guild ID, or recipient user ID
+  content     String
+  timestamp   DateTime @default(now())
+}
+
+model Achievement {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievementId String
+  unlockedAt  DateTime @default(now())
+
+  @@unique([userId, achievementId])
+}
+
+model QuestProgress {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  questId   String
+  progress  Int      @default(0)
+  status    String   @default("ACTIVE") // ACTIVE, COMPLETED, CLAIMED
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, questId])
+}
+
+model Transaction {
+  id           String   @id @default(uuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amount       Int
+  currencyType String   // COINS, GEMS
+  description  String
+  createdAt    DateTime @default(now())
+}
+
+model MatchHistory {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  gameId      String   // chess, snake, tic_tac_toe, etc.
+  result      String   // WIN, LOSS, DRAW
+  score       Int      @default(0)
+  coinsEarned Int      @default(0)
+  xpEarned    Int      @default(0)
+  playedAt    DateTime @default(now())
+}
+
+model Room {
+  id        String   @id
+  isPrivate Boolean  @default(false)
+  password  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
